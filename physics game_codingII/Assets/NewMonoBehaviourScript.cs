@@ -3,101 +3,125 @@ using UnityEngine.InputSystem;
 
 public class ObjectGrabber : MonoBehaviour
 {
-    [header("Grab Settings")]
-
+    [Header("Grab Settings")]
+    [Tooltip("Maximum distance to grab an object")]
+    public float grabRange = 4f;
     [Tooltip("How fast the held object moves to the hold point. higher = snappier")]
-    public float grabRange = 4;
-
     public float holdSmoothing = 15f;
+    public float throwForce = 15f;
 
-    public Trabsfirn holdPoint;
+    [Header("References")]
+    public Transform holdPoint;
+    public Transform cameraTransform; // Added this since it was used but not defined
 
-    publc float throwForce = 15f;
+    private Rigidbody heldRigidbody;
+    private InteractableObject currentHighlight;
+    private bool isHolding = false;
 
-    private Rigitdbody heldObject;
-    private bool isHolding = false; 
-
-    private InteractableObject
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void FixedUpdate()
     {
-        if (isHolding && heldObject != null) MoveHeldObject();
-
+        if (isHolding && heldRigidbody != null) 
+        {
+            MoveHeldObject();
+        }
     }
 
-    // Update is called once per frame
     void Update()
     {
-        //run the detention raycast every frame to updaet update the highlight
-        //this is diff from grab graycast is just checks what the player is looking at and highlights/unhighlight accordingly
-        UpdateHighlight();
+        // Only update highlights if we aren't currently carrying something
+        if (!isHolding)
+        {
+            UpdateHighlight();
+        }
     }
 
-    //called every fixed updae while holding an object 
-    //smoothly moves the rigidbody toward the hold point 
-    
     void MoveHeldObject()
     {
-        Vector3 targetPos = cameraTransform.position + cameraTransform.forward * holdDistance;
-        Vector3 currentPos = heldObject.position;
-        Vector3 newPos = Vector3.Lerp(currentPos, targetPos, holdSmoothing * Time.fixedDeltaTime);
-        heldObject.MovePosition(newPos);
+        // Smoothly interpolate the position toward the holdPoint
+        Vector3 targetPos = holdPoint.position;
+        Vector3 newPos = Vector3.Lerp(heldRigidbody.position, targetPos, holdSmoothing * Time.fixedDeltaTime);
+        heldRigidbody.MovePosition(newPos);
     }
+
+    // Call this from an Input Action (e.g., OnGrab)
+    public void OnGrabPerformed(InputAction.CallbackContext context)
+    {
+        if (context.performed)
+        {
+            if (isHolding) ThrowObject();
+            else TryGrab();
+        }
+    }
+
     void TryGrab()
     {
-        Ray ray = new Ray(transform.position, transform.forward);
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
         RaycastHit hit;
 
-        Debug.DrawRay(transform.position, transform.forward * grabRange, Color.red, 0.5f);
-
-        if(Physics.Raycast(ray, out hit, grabRange))
-        {
-            InteractableObject interactable = hit.collider.GetComponent<InteractableObject>();
-            if(interactable != null)
-            {
-                heldObject.useGravity = false;
-                heldObject.freezeRotation = true;
-                heldObject.linearVelocity = Vector3.zero;
-                heldObject.angularVelocity = Vector3.zero;
-
-                interactable.Unhighlight();
-                currentHighlight = null;
-
-                isHolding = true;
-                Debug.Log($"Grabbed {heldObject.name}");
-
-                heldObject.MovePosition(newPos);
-            }
-    }    
-
-    void ThrowObject()
-    {
-        if (heldObject == null) return;
-        
-        heldObejct.useGravity = true;
-        heldObejct.useGravity = true;
-
-    }
-
-    public void OnThrowPlatformed(InputAction.CallbackContext context)
-    {
-        if(isHolding) ThrowObject();
-    }
-    
-    void UpdateHighlight()
-    {
-        if (isHolding) return;
-        Ray ray = new Ray(origin:transform.position, direction:transform,froward);
-        RatcastHit hit;
-        Debug.DrawRay(start transform.position, dir:transform.forward * grabRange, Color, red);
+        Debug.DrawRay(cameraTransform.position, cameraTransform.forward * grabRange, Color.red, 0.5f);
 
         if (Physics.Raycast(ray, out hit, grabRange))
         {
             InteractableObject interactable = hit.collider.GetComponent<InteractableObject>();
-            if (interactable != null && currentHight != interactable)
+            Rigidbody rb = hit.collider.GetComponent<Rigidbody>();
+
+            if (interactable != null && rb != null)
             {
-                currentHighLight.Unhighlight
+                heldRigidbody = rb;
+                heldRigidbody.useGravity = false;
+                // Optional: stop it from spinning wildly while held
+                heldRigidbody.angularVelocity = Vector3.zero; 
+                
+                if(currentHighlight != null) currentHighlight.Unhighlight();
+                currentHighlight = null;
+
+                isHolding = true;
+                Debug.Log($"Grabbed {heldRigidbody.name}");
             }
+        }
+    }
+
+    void ThrowObject()
+    {
+        if (heldRigidbody == null) return;
+
+        heldRigidbody.useGravity = true;
+        // Apply force in the direction the camera is looking
+        heldRigidbody.AddForce(cameraTransform.forward * throwForce, ForceMode.Impulse);
+
+        heldRigidbody = null;
+        isHolding = false;
+    }
+
+    void UpdateHighlight()
+    {
+        Ray ray = new Ray(cameraTransform.position, cameraTransform.forward);
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit, grabRange))
+        {
+            InteractableObject interactable = hit.collider.GetComponent<InteractableObject>();
+
+            // If we hit a new interactable
+            if (interactable != null)
+            {
+                if (currentHighlight != interactable)
+                {
+                    if (currentHighlight != null) currentHighlight.Unhighlight();
+                    currentHighlight = interactable;
+                    currentHighlight.Highlight();
+                }
+            }
+            else if (currentHighlight != null)
+            {
+                currentHighlight.Unhighlight();
+                currentHighlight = null;
+            }
+        }
+        else if (currentHighlight != null)
+        {
+            currentHighlight.Unhighlight();
+            currentHighlight = null;
         }
     }
 }
