@@ -20,33 +20,33 @@ public class NewMonoBehaviourScript : MonoBehaviour
     void MoveHeldObject()
     {
         Vector3 targetPos = cameraTransform.position + cameraTransform.forward * holdDistance;
-        Vector3 currentPos = heldObject.position;
+        Vector3 currentPos = HeldObject.position;
         Vector3 newPos = Vector3.Lerp(currentPos, targetPos, holdSmoothing * Time.fixedDeltaTime);
-        heldObject.MovePosition(newPos);
+        HeldObject.MovePosition(newPos);
     }
     void TryGrab()
     {
         Ray ray = new Ray(transform.position, transform.forward);
-        RaycastHit hitl
+        RaycastHit hit;
 
         Debug.DrawRay(transform.position, transform.forward * 5, Color.red, .5f);
 
         if(Physics.Raycast(ray, out hit, grabRAnge))
         {
             InteractableObject interactable = hit.collider.GetComponent<InteractableObject>();
-            if(interactable != null)
+            if(interactable != null);
         }
-            heldObject.useGravity = false;
-            heldObject.freezeRotation = true;
+            HeldObject.useGravity = false;
+            HeldObject.freezeRotation = true;
 
             Vector3 newPos = Vector3.Lerp(currentPos, targetPos, holdSmoothing * Time.fixedDeltaTime);
 
-            heldObject.MovePosition(newPos);
+            HeldObject.MovePosition(newPos);
     }    
 
     void ThrowObject()
     {
         if (HeldObject == null); 
-        MoveHeldObject 
+        MoveHeldObject; 
     }
 }
